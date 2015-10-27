@@ -1,32 +1,9 @@
-import MySQLdb, itertools, re
-
-bsd_fields  ='''start_day   venue_zip  capacity   name  attendee_count
-    shifttimes    start_time   location    longitude   event_type_name
-    shiftcount  url  latitude  start_dt is_official  id  shift_details
-    id_obfuscated'''.split()
+import MySQLdb, itertools, re, os, bisect, copy
 
 db_fields = 'venue_zip start_dt attendee_count attendee_info id_obfuscated'.split()
 
-def get_row_id(row):
-    return row['id_obfuscated']
-
 def connection():
     return MySQLdb.connect(passwd='passme', db='bernieevents', user='root')
-
-def seen_ids(rows, db=None):
-    these_ids = [get_row_id(e) for e in rows]
-    for this_id in these_ids:
-        # Sanitize as pure alphanumeric for direct splicing into DB query
-        if not re.match('[A-z0-9]+$', this_id):
-            raise ValueError, 'Not a valid id: %s' % this_id
-    db = db or connection()
-    try:
-        cursor = db.cursor()
-        cursor.execute('SELECT id_obfuscated FROM events WHERE id_obfuscated IN (%s);' %
-                       ','.join("'%s'" % i for i in these_ids))
-        return set(itertools.chain(*cursor.fetchall()))
-    finally:
-        db.close()
 
 def insert_event_counts(insertions, db=None):
     for row in insertions:
@@ -34,9 +11,18 @@ def insert_event_counts(insertions, db=None):
     db = db or connection()
     cursor = db.cursor()
     try:
+        # Do an  upsert into  the DB.   PRIMARY KEY  is id_obfuscated.
+        # DUPLICATE KEY UPDATE clause  simply assigns all the received
+        # values to their respective columns.
         cursor.executemany(
-            '''INSERT INTO events (%s) VALUES (%s)''' % (
-            ', '.join(db_fields), ', '.join(['%s']*len(db_fields))),
+            '''INSERT INTO events (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s;''' % (
+            # E.g., 'venue_zip, start_dt, attendee_count, attendee_info, id_obfuscated'
+            ', '.join(db_fields),
+            # E.g. '%s, %s, %s, %s, %s'
+            ', '.join(['%s']*len(db_fields)),
+            # E.g. 'venue_zip = VALUES(venue_zip), start_dt = VALUES(start_dt), ...'
+            ', '.join('%(f)s = VALUES(%(f)s)' % {'f': f} for  f in db_fields)),
+            # These values replace the '%s' substrings from the second argument.
             [[e[f] for f in db_fields] for e in insertions])
         db.commit()
     except:
@@ -44,3 +30,33 @@ def insert_event_counts(insertions, db=None):
         raise
     finally:
         db.close()
+
+def get_counts(zips, timebreaks, conn):
+
+    '''Return a zero-argument function which returns rows from the the
+    db query until  all such rows are consumed.  The  db query returns
+    the counts for  all events between the two times  in timebreaks in
+    any of the zips listed in `zips`.'''
+    
+    cols = 'venue_zip start_dt attendee_count attendee_info'.split()
+    allzips = list(itertools.chain(*zips))
+    cursor = conn.cursor()
+    # Sanitize so we can splice zips straight in to the sql query
+    for z in allzips: 
+        assert isinstance(z, basestring) and re.match('\d{5}$', z), \
+               'Five-digit zip code: %s?' % z
+    cursor.execute('''SELECT %s FROM events WHERE venue_zip IN (%s) AND attendee_info IS TRUE
+    AND start_dt >= %%s AND start_dt < %%s;''' % (
+        # These are the column names, e.g. 'venue_zip, start_dt, attendee_count, attendee_info'
+        ','.join(cols),
+        # E.g., '45349,02139,...'
+        ','.join(allzips)),
+                   # The  '%%s' instances  in the  above interpolation
+                   # become  '%s'  when  it's  completed,  part  of  a
+                   # prepared  statement   in  which  the   dates  are
+                   # inserted.
+                   [timebreaks[0], timebreaks[-1]])
+    return lambda: cursor.fetchmany(1000)
+    
+def dump():
+    return os.popen('mysqldump -uroot -ppassme bernieevents | gzip -9').read()

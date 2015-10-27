@@ -1,14 +1,9 @@
-import itertools
+import  json, urllib, itertools
 from . import db
     
 def insert(rows):
-    observed_fields = itertools.chain(*set(tuple(e.keys()) for  e in  events))
-    assert set(observed_fields) == set(db.bsd_fields), 'Expected schema?'
-    # Get the rows in the json list which aren't already present in the db
-    seen = db.seen_ids(rows)
-    unseen = [e for e in rows if db.get_row_id(e) not in set(seen)]
     insertions = []
-    for event in unseen:
+    for event in rows:
         if 'attendee_count' in event:
             attendee_count = int(event['attendee_count'])
         elif 'shift_details' in event:
@@ -23,10 +18,17 @@ def insert(rows):
         insertion = event.copy()
         insertion['attendee_count'] = 0 if attendee_count is None else attendee_count
         insertion['attendee_info'] = True if attendee_count is not None else False
+        insertion['venue_zip'] = insertion['venue_zip'].split('-')[0]
         insertions.append(insertion)
     db.insert_event_counts(insertions)
 
-if __name__ == '__main__':
-    import  json, urllib
-    events = json.loads(urllib.urlopen('http://d2bq2yf31lju3q.cloudfront.net/d/events.json').read())['results']
+def import_events(url):
+    events = json.loads(urllib.urlopen(url).read())['results']
     insert(events)
+
+def import_daily_events():
+    import_events('http://d2bq2yf31lju3q.cloudfront.net/d/events.json')
+    
+def import_total_events():
+    import_events('https://go.berniesanders.com/page/event/search_results?format=json&wrap=no&orderby[0]=date&orderby[1]=desc&event_type=26&mime=text/json&limit=10000&country=*&date_start=1')
+    
