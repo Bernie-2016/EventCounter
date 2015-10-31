@@ -5,11 +5,12 @@ dbcreds, dbhost = dbinfo.netloc.split('@')
 dbuser, dbpass = dbcreds.split(':')
 database = os.path.split(dbinfo.path)[-1]
 
-schema = {'venue_zip'      : 'CHAR(5)',
-          'start_dt'       : 'DATETIME', 
-          'attendee_count' : 'INT',
-          'attendee_info'  : 'BOOLEAN',
-          'id_obfuscated'  : 'VARCHAR(20)',}
+schema = {'venue_zip'           : 'CHAR(5)',
+          'attendee_count'      : 'INT',
+          'create_dt'           : 'DATETIME',
+          'attendee_info'       : 'BOOLEAN', 
+          'event_id_obfuscated' : 'VARCHAR(20)',}
+primary_key = 'event_id_obfuscated'
 
 db_fields = schema.keys()
 
@@ -22,16 +23,16 @@ def insert_event_counts(insertions, db=None):
     _db = db or connection()
     cursor = _db.cursor()
     try:
-        # Do an  upsert into  the DB.   PRIMARY KEY  is id_obfuscated.
+        # Do an  upsert into  the DB.   PRIMARY KEY  is event_id_obfuscated.
         # DUPLICATE KEY UPDATE clause  simply assigns all the received
         # values to their respective columns.
         cursor.executemany(
             '''INSERT INTO events (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s;''' % (
-            # E.g., 'venue_zip, start_dt, attendee_count, attendee_info, id_obfuscated'
+            # E.g., 'venue_zip, create_dt, attendee_count, attendee_info, event_id_obfuscated'
             ', '.join(db_fields),
             # E.g. '%s, %s, %s, %s, %s'
             ', '.join(['%s']*len(db_fields)),
-            # E.g. 'venue_zip = VALUES(venue_zip), start_dt = VALUES(start_dt), ...'
+            # E.g. 'venue_zip = VALUES(venue_zip), create_dt = VALUES(create_dt), ...'
             ', '.join('%(f)s = VALUES(%(f)s)' % {'f': f} for  f in db_fields)),
             # These values replace the '%s' substrings from the second argument.
             [[e[f] for f in db_fields] for e in insertions])
@@ -50,7 +51,7 @@ def get_counts(zips, timebreaks, conn):
     the counts for  all events between the two times  in timebreaks in
     any of the zips listed in `zips`.'''
     
-    cols = 'venue_zip start_dt attendee_count attendee_info'.split()
+    cols = list(set(schema) - set([primary_key]))
     allzips = list(itertools.chain(*zips))
     cursor = conn.cursor()
     # Sanitize so we can splice zips straight in to the sql query
@@ -58,8 +59,8 @@ def get_counts(zips, timebreaks, conn):
         assert isinstance(z, basestring) and re.match('\d{5}$', z), \
                'Five-digit zip code: %s?' % z
     cursor.execute('''SELECT %s FROM events WHERE venue_zip IN (%s) AND attendee_info IS TRUE
-    AND start_dt >= %%s AND start_dt < %%s;''' % (
-        # These are the column names, e.g. 'venue_zip, start_dt, attendee_count, attendee_info'
+    AND create_dt >= %%s AND create_dt < %%s;''' % (
+        # These are the column names, e.g. 'venue_zip, create_dt, attendee_count, attendee_info'
         ','.join(cols),
         # E.g., '45349,02139,...'
         ','.join(allzips)),
@@ -69,13 +70,13 @@ def get_counts(zips, timebreaks, conn):
                    # inserted.
                    [timebreaks[0], timebreaks[-1]])
     return lambda: cursor.fetchmany(1000)
-    
+
 def maybe_create_events_table():
     db = connection()
     try:
         db.cursor().execute(
-            '''CREATE TABLE IF NOT EXISTS events (%s, PRIMARY KEY (id_obfuscated));''' %
-            ', '.join('%s %s' % (n, t) for n,t in schema.items()))
+            '''CREATE TABLE IF NOT EXISTS events (%s, PRIMARY KEY (%s));''' % (
+            ', '.join('%s %s' % (n, t) for n,t in schema.items()), primary_key))
     finally:
         db.close()
 

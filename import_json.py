@@ -1,5 +1,5 @@
 import  json, urllib, itertools
-from . import db
+from . import db, bsd
     
 def insert(rows):
     insertions = []
@@ -31,4 +31,7 @@ def import_daily_events():
     
 def import_total_events():
     import_events('https://go.berniesanders.com/page/event/search_results?format=json&wrap=no&orderby[0]=date&orderby[1]=desc&event_type=26&mime=text/json&limit=10000&country=*&date_start=1')
+    
+def import_bsd_events_since(date):
+    insert(bsd.get_events_since(date))
     

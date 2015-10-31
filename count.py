@@ -1,6 +1,7 @@
 import json, BaseHTTPServer, itertools, re, cStringIO, traceback, copy, sys
 import threading, os, logging, time, SocketServer, base64, socket, bisect
 from dateutil.parser import parse as parse_date
+from datetime import datetime, timedelta
 from . import db, mail, import_json
 
 class RequestError(Exception):
@@ -106,17 +107,20 @@ class ThreadedHTTPServer(SocketServer.ThreadingMixIn,
 
 # Pull an update every hour
 def update_db():
+    delay = 60*60 # One hour
     logging.info('Updating database')
-    import_json.import_daily_events()
+    # Pull updates from twice the delay back, in case of clock skew.
+    hourago = datetime.now() - timedelta(seconds = 2*delay)
+    import_json.import_bsd_events_since(hourago.ctime())
     logging.info('Done updating database')
-    threading.Timer(60*60, update_db)
+    threading.Timer(delay, update_db)
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logging.info('Starting service')
     db.maybe_create_events_table()
     # Make sure we have a full update to start with
-    import_json.import_total_events()
+    import_json.import_bsd_events_since('Aug 2 1972')
     # Do hourly updates
     update_db()    
     BaseHTTPServer.test(HandlerClass=RequestHandler,
