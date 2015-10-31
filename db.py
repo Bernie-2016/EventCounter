@@ -13,8 +13,8 @@ def connection():
 def insert_event_counts(insertions, db=None):
     for row in insertions:
         assert re.match('\d{5}$', row['venue_zip'])
-    db = db or connection()
-    cursor = db.cursor()
+    _db = db or connection()
+    cursor = _db.cursor()
     try:
         # Do an  upsert into  the DB.   PRIMARY KEY  is id_obfuscated.
         # DUPLICATE KEY UPDATE clause  simply assigns all the received
@@ -29,12 +29,13 @@ def insert_event_counts(insertions, db=None):
             ', '.join('%(f)s = VALUES(%(f)s)' % {'f': f} for  f in db_fields)),
             # These values replace the '%s' substrings from the second argument.
             [[e[f] for f in db_fields] for e in insertions])
-        db.commit()
+        _db.commit()
     except:
-        db.rollback()
+        _db.rollback()
         raise
     finally:
-        db.close()
+        if not db: # This is a local connection, don't tie it up
+            _db.close()
 
 def get_counts(zips, timebreaks, conn):
 
