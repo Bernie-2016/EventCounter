@@ -1,4 +1,4 @@
-import json, BaseHTTPServer, itertools, re, cStringIO, traceback, copy
+import json, BaseHTTPServer, itertools, re, cStringIO, traceback, copy, sys
 import threading, os, logging, time, SocketServer, base64, socket, bisect
 from dateutil.parser import parse as parse_date
 from . import db, mail, import_json
@@ -112,11 +112,7 @@ def update_db():
     threading.Timer(60*60, update_db)
 
 if __name__ == '__main__':
-    logdir = '/var/log/bernieevents'
-    if not os.path.exists(logdir):
-        os.mkdir(logdir)
-    logging.basicConfig(filename=os.path.join(logdir, '%s.log' % time.ctime().replace(' ', '-')),
-                        level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logging.info('Starting service')
     # Make sure we have a full update to start with
     import_json.import_total_events()
