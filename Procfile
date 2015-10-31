@@ -1,1 +1,1 @@
-web: python count.py $PORT
+web: ( cd .. && python -m EventCounter.count $PORT )
