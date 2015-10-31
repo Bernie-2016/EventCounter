@@ -5,7 +5,13 @@ dbcreds, dbhost = dbinfo.netloc.split('@')
 dbuser, dbpass = dbcreds.split(':')
 database = os.path.split(dbinfo.path)[-1]
 
-db_fields = 'venue_zip start_dt attendee_count attendee_info id_obfuscated'.split()
+schema = {'venue_zip'      : 'CHAR(5)',
+          'start_dt'       : 'DATETIME', 
+          'attendee_count' : 'INT',
+          'attendee_info'  : 'BOOLEAN',
+          'id_obfuscated'  : 'VARCHAR(20)',}
+
+db_fields = schema.keys()
 
 def connection():
     return MySQLdb.connect(passwd=dbpass, db=database, user=dbuser, host=dbhost)
@@ -64,6 +70,15 @@ def get_counts(zips, timebreaks, conn):
                    [timebreaks[0], timebreaks[-1]])
     return lambda: cursor.fetchmany(1000)
     
+def maybe_create_events_table():
+    db = connection()
+    try:
+        db.cursor().execute(
+            '''CREATE TABLE IF NOT EXISTS events (%s, PRIMARY KEY (id_obfuscated));''' %
+            ', '.join('%s %s' % (n, t) for n,t in schema.items()))
+    finally:
+        db.close()
+
 def dump():
     return os.popen('mysqldump -u%s -p%s --host=%s %s | gzip -9' % (
         dbuser, dbpass, dbhost, database)).read()

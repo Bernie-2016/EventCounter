@@ -114,6 +114,7 @@ def update_db():
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logging.info('Starting service')
+    db.maybe_create_events_table()
     # Make sure we have a full update to start with
     import_json.import_total_events()
     # Do hourly updates
