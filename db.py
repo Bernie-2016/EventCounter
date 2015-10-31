@@ -1,9 +1,14 @@
-import MySQLdb, itertools, re, os, bisect, copy
+import MySQLdb, itertools, re, os, bisect, copy, urlparse
+
+dbinfo = urlparse.urlparse(os.environ['CLEARDB_DATABASE_URL'])
+dbcreds, dbhost = dbinfo.netloc.split('@')
+dbuser, dbpass = dbcreds.split(':')
+database = os.path.split(dbinfo.path)[-1]
 
 db_fields = 'venue_zip start_dt attendee_count attendee_info id_obfuscated'.split()
 
 def connection():
-    return MySQLdb.connect(passwd='passme', db='bernieevents', user='root')
+    return MySQLdb.connect(passwd=dbpass, db=database, user=dbuser, host=dbhost)
 
 def insert_event_counts(insertions, db=None):
     for row in insertions:
@@ -59,4 +64,5 @@ def get_counts(zips, timebreaks, conn):
     return lambda: cursor.fetchmany(1000)
     
 def dump():
-    return os.popen('mysqldump -uroot -ppassme bernieevents | gzip -9').read()
+    return os.popen('mysqldump -u%s -p%s --host=%s %s | gzip -9' % (
+        dbuser, dbpass, dbhost, database)).read()
