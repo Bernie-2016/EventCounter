@@ -1,9 +1,4 @@
-import sys, os, json
-
-bsdpath = os.path.join(os.path.dirname(__file__), 'bsd-api-python')
-if bsdpath not in sys.path:
-    sys.path.append(bsdpath)
-
+import os, json
 from bsdapi.BsdApi import Factory
 
 api = Factory().create(
