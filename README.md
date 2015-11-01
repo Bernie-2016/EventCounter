@@ -9,7 +9,6 @@ settings:
   [here](https://www.google.com/settings/security/lesssecureapps) as
   that google account and choose "turn on."  Otherwise, notifications
   won't work.
-
 - `EMAILPASSWORD`: Password for gmail account
 - `EMAILRECIPIENT`: Email to send notifications to
 - `BSDHOST`: Host of the Blue State Digital database
