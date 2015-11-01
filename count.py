@@ -62,7 +62,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 raise RequestError, 'Not a five-digit zip code: %s' % z
         return zips, timebreaks
 
-    def report_error(self, e):
+    def report_error(self, e, payload):
         tb = cStringIO.StringIO()
         traceback.print_exc(file=tb)            
         self.wfile.write(json.dumps({'error': tb.getvalue()}))
@@ -76,7 +76,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 ************************************************************************
 request: %r
 gzipped database: %r''' % (self.client_address, tb.getvalue(), payload,
-                           base64.encode(db.dump()))
+                           base64.encodestring(db.dump()))
             logging.info(logmsg)
             mail.send('Error from bernievents', logmsg)
         
@@ -93,7 +93,7 @@ gzipped database: %r''' % (self.client_address, tb.getvalue(), payload,
         except Exception, e:
             if 'payload' not in locals():
                 payload = 'Unread payload'
-            self.report_error(e)
+            self.report_error(e, payload)
             raise
         finally:
             conn.close()
