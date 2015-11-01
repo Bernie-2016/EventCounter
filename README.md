@@ -1,22 +1,28 @@
 Installation
 ============
 
-If $SERVER_HOSTNAME is running ubuntu 14.04, just do
+This is set up to run under heroku.  It expects the following  config
+settings: 
 
-```ssh $SERVER_HOSTNAME DBPASSWORD=$DBPASSWORD EMAILUSERNAME=$EMAILUSERNAME EMAILPASSWORD=$EMAILPASSWORD EMAILRECIPIENT=$EMAILRECIPIENT bash < setup.sh```
-
-Where $DBPASSWORD is the password you want for the DB, $EMAILUSERNAME
-and $EMAILPASSWORD are credentials for a gmail account you're going to
-use to mail notifications of unexpected errors.  (go
-[here](https://www.google.com/settings/security/lesssecureapps) as that
-google account, and choose "turn on," otherwise it won't work), and
-$EMAILRECIPIENT is who should receive the notifications.
+- `EMAILUSERNAME`: Name of gmail account for sending failure
+  notifications.  Go
+  [here](https://www.google.com/settings/security/lesssecureapps) as
+  that google account and choose "turn on."  Otherwise, notifications
+  won't work.
+- `EMAILPASSWORD`: Password for gmail account
+- `EMAILRECIPIENT`: Email to send notifications to
+- `BSDHOST`: Host of the Blue State Digital database
+- `BSDPORT`: Port for DB
+- `BSDID`: ID for DB
+- `BSDSECRET`: Secret for DB
 
 Usage
 =====
 
 ```
-% curl -H "Content-Type: application/json" -X POST -d '[[["37209", "37416"]], ["Jan 1 1979", "Oct 23 2015"]]' http://${SERVER_HOSTNAME}:8000/
+% curl -H "Content-Type: application/json" -X POST -d \
+    '[[["37209", "37416"]], ["Jan 1 1979", "Oct 23 2015"]]' \
+    http://${SERVER_HOSTNAME}:8000/
 {"success": [[{"events_with_attendee_info": 1, "attendees": 45, "events": 1}]]}
 ```
 
@@ -83,5 +89,6 @@ Pulling counts from the BSD API and storing locally is in
 Everything which touches the db is in `db.py`.
 
 When the code first starts, it pulls events from the BSD api as far back
-as it can.  Then it updates from the daily endpoint once an hour.  It
-uses id_obfuscated as the primary key, and upserts the BSD data.
+as it can.  Then once an hour it requests all events from the last two
+hours.  It uses `event_id_obfuscated` as the primary key, and upserts
+the BSD data.

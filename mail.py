@@ -2,8 +2,8 @@
 import smtplib, os
 from email.mime.text import MIMEText
 
-secret_path = os.path.join(os.path.dirname(__file__), 'email.secret')
-username, password, recipient = open(secret_path).read().split()
+envnames = 'EMAILUSERNAME EMAILPASSWORD EMAILRECIPIENT'.split()
+username, password, recipient = [os.environ[v] for v in envnames]
 
 sender = username+'@gmail.com'
 

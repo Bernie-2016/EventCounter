@@ -1,6 +1,7 @@
-import json, BaseHTTPServer, itertools, re, cStringIO, traceback, copy
+import json, BaseHTTPServer, itertools, re, cStringIO, traceback, copy, sys
 import threading, os, logging, time, SocketServer, base64, socket, bisect
 from dateutil.parser import parse as parse_date
+from datetime import datetime, timedelta
 from . import db, mail, import_json
 
 class RequestError(Exception):
@@ -17,15 +18,15 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             rows = getrows()
             if not rows:
                 break
-            for venue_zip, start_dt, attendee_count, attendee_info in rows:
+            for row in rows:
                 for zipset, zcounts in counts.items():
-                    if venue_zip in zipset:
-                        intidx = bisect.bisect(timebreaks, start_dt)
+                    if row['venue_zip'] in zipset:
+                        intidx = bisect.bisect(timebreaks, row['create_dt'])
                         # Bisect puts a bin below the lowest value, which we don't need.
                         current_info = zcounts[intidx-1]
                         current_info['events'] += 1
-                        if attendee_info:
-                            current_info['attendees'] += attendee_count
+                        if row['attendee_info']:
+                            current_info['attendees'] += row['attendee_count']
                             current_info['events_with_attendee_info'] += 1
         return counts
 
@@ -61,7 +62,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 raise RequestError, 'Not a five-digit zip code: %s' % z
         return zips, timebreaks
 
-    def report_error(self, e):
+    def report_error(self, e, payload):
         tb = cStringIO.StringIO()
         traceback.print_exc(file=tb)            
         self.wfile.write(json.dumps({'error': tb.getvalue()}))
@@ -75,7 +76,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 ************************************************************************
 request: %r
 gzipped database: %r''' % (self.client_address, tb.getvalue(), payload,
-                           base64.encode(db.dump()))
+                           base64.encodestring(db.dump()))
             logging.info(logmsg)
             mail.send('Error from bernievents', logmsg)
         
@@ -92,7 +93,7 @@ gzipped database: %r''' % (self.client_address, tb.getvalue(), payload,
         except Exception, e:
             if 'payload' not in locals():
                 payload = 'Unread payload'
-            self.report_error(e)
+            self.report_error(e, payload)
             raise
         finally:
             conn.close()
@@ -106,20 +107,20 @@ class ThreadedHTTPServer(SocketServer.ThreadingMixIn,
 
 # Pull an update every hour
 def update_db():
+    delay = 60*60 # One hour
     logging.info('Updating database')
-    import_json.import_daily_events()
+    # Pull updates from twice the delay back, in case of clock skew.
+    hourago = datetime.now() - timedelta(seconds = 2*delay)
+    import_json.import_bsd_events_since(hourago.ctime())
     logging.info('Done updating database')
-    threading.Timer(60*60, update_db)
+    threading.Timer(delay, update_db)
 
 if __name__ == '__main__':
-    logdir = '/var/log/bernieevents'
-    if not os.path.exists(logdir):
-        os.mkdir(logdir)
-    logging.basicConfig(filename=os.path.join(logdir, '%s.log' % time.ctime().replace(' ', '-')),
-                        level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logging.info('Starting service')
+    db.maybe_create_events_table()
     # Make sure we have a full update to start with
-    import_json.import_total_events()
+    import_json.import_bsd_events_since('Aug 2 1972')
     # Do hourly updates
     update_db()    
     BaseHTTPServer.test(HandlerClass=RequestHandler,
