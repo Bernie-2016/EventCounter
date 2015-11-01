@@ -69,7 +69,7 @@ def get_counts(zips, timebreaks, conn):
                    # prepared  statement   in  which  the   dates  are
                    # inserted.
                    [timebreaks[0], timebreaks[-1]])
-    return lambda: cursor.fetchmany(1000)
+    return lambda: [dict(zip(cols, r)) for r in cursor.fetchmany(1000)]
 
 def maybe_create_events_table():
     db = connection()

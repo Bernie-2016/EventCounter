@@ -18,15 +18,15 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             rows = getrows()
             if not rows:
                 break
-            for venue_zip, start_dt, attendee_count, attendee_info in rows:
+            for row in rows:
                 for zipset, zcounts in counts.items():
-                    if venue_zip in zipset:
-                        intidx = bisect.bisect(timebreaks, start_dt)
+                    if row['venue_zip'] in zipset:
+                        intidx = bisect.bisect(timebreaks, row['create_dt'])
                         # Bisect puts a bin below the lowest value, which we don't need.
                         current_info = zcounts[intidx-1]
                         current_info['events'] += 1
-                        if attendee_info:
-                            current_info['attendees'] += attendee_count
+                        if row['attendee_info']:
+                            current_info['attendees'] += row['attendee_count']
                             current_info['events_with_attendee_info'] += 1
         return counts
 
