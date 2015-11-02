@@ -10,7 +10,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.network :forwarded_port, guest: 5000, host: 7000
   config.vm.provider "virtualbox" do |v|
     v.cpus = 1
-    v.memory = 512
+    v.memory = 256
   end
 end
 
