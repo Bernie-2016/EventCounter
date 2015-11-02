@@ -1,0 +1,9 @@
+---
+- hosts: default
+  tasks:
+    - name: Install useful packages
+      sudo: True
+      apt: pkg={{item}} state=installed
+      with_items: [git, emacs, mysql-client]
+  roles:
+    - { role: ansible-role-heroku-toolbelt }
