@@ -4,3 +4,6 @@ venv/
 .env2
 \#*\#
 .\#*
+.vagrant
+*.bak
+
