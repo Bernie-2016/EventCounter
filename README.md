@@ -1,15 +1,18 @@
 Installation
 ============
 
-First, install Vagrant and virtualbox.  Then in this directory, run
+To complete the git checkout process, run these commands in this
+directory: 
 
 ```
 git submodule init
-git submodule update
+git submodule update --recursive
 ```
 
+To build this service, first install Vagrant and virtualbox.  
+
 This service is set up to run under heroku.  It expects the following
-config settings, passed as environment variables to "vagrant up":
+config settings to be passed as environment variables:
 
 - `EMAILUSERNAME`: Name of gmail account for sending failure
   notifications.  Go
@@ -31,7 +34,7 @@ config settings, passed as environment variables to "vagrant up":
 You can ignore the "EMAIL" variables if you want. They will disappear
 soon.
 
-Set these environment variables, then in this directory run `vagrant
+Set those environment variables, then in this directory run `vagrant
 init ubuntu/trusty64` followed by `vagrant up`.  If the output finishes
 with "failed=0", you have successfully provisioned a server.  This will
 take a while.
