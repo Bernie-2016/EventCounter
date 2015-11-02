@@ -1,16 +1,20 @@
 import  json, urllib, itertools
 from . import db, bsd
-    
+
+def get_attendee_count(event):
+    # Sometimes this can be None.
+    return event.get('attendee_count', None) or 0
+
 def insert(rows):
     insertions = []
     for event in rows:
         if 'attendee_count' in event:
-            attendee_count = int(event['attendee_count'])
+            attendee_count = int(get_attendee_count(event))
         elif 'shift_details' in event:
             assert len(event['shift_details']) == int(event['shiftcount'])
             # XXX  This  may   multicount  attendees  of  multiple
             # shifts!  Need actual list of attendees.
-            attendee_count = sum(int(s['attendee_count'])
+            attendee_count = sum(int(get_attendee_count(event))
                                  for s in event['shift_details'])
         else:
             # No attendee_count information:
