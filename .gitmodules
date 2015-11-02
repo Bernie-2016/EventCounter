@@ -1,3 +1,4 @@
 [submodule "roles/ansible-role-heroku-toolbelt"]
 	path = roles/ansible-role-heroku-toolbelt
-	url = https://github.com/pablocrivella/ansible-role-heroku-toolbelt
+	url = https://github.com/coventry/ansible-role-heroku-toolbelt
+
