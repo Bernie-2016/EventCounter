@@ -1,6 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+require 'securerandom'
+
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
@@ -15,7 +17,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  appname = ( ENV["HEROKU_APP_NAME"] or 'event-counter-'+SecureRandom.uuid )
   config.vm.provision "ansible" do |ansible|
+    ansible.extra_vars = {
+      "heroku_email" => ENV["HEROKU_EMAIL"],
+      "heroku_api_key"  => ENV["HEROKU_API_KEY"],
+      "heroku_appname"  => appname,
+      "bsd_host" => ENV['BSDHOST'],
+      "bsd_id" => ENV['BSDID'],
+      "bsd_secret" => ENV['BSDSECRET'],
+    }
     ansible.playbook = "provision.yaml"
   end
 end
