@@ -1,9 +1,47 @@
 ---
 - hosts: default
+  vars:
+    venv: ~vagrant/venv
   tasks:
     - name: Install useful packages
-      sudo: True
-      apt: pkg={{item}} state=installed
-      with_items: [git, emacs, mysql-client]
+      apt: pkg={{item}} state=installed 
+      # libmysqlclient-dev is an implicit dependency of python's MySQLdb
+      with_items: [git, emacs, mysql-client, python-pip, python-virtualenv, libmysqlclient-dev, python-dev]
+      sudo: true
+    - name: Install python heroku api client
+      pip: name=heroku version=0.1.4 state=present
+      sudo: true
+    - name: Record heroku credentials ("heroku login")
+      command: python /vagrant/create_netrc.py {{ heroku_email }} {{ heroku_api_key }} 
+      args: 
+        creates: /home/vagrant/.netrc
+    - name: Maybe create heroku app
+      command: heroku create {{ heroku_appname }}
+      args:
+        chdir: /vagrant/
+      ignore_errors: true
+    - name: Set heroku config vars
+      command: heroku config:set BSDID={{bsd_id}} BSDSECRET={{bsd_secret}} BSDHOST={{bsd_host}}
+      args:
+        chdir: /vagrant/
+    - name: Maybe add a mysql DB to the app
+      command: heroku addons:create cleardb:ignite
+      args:
+        chdir: /vagrant/
+      ignore_errors: true
+    - name: Dump heroku vars to local .env file
+      shell: heroku config -s > /vagrant/.env
+      args:
+        chdir: /vagrant/
+        creates: /vagrant/.env
+    - name: Virtual environment for running locally
+      command: virtualenv {{venv}}
+      args:
+        chdir: /vagrant/
+        creates: "{{venv}}"
+    - name: Install python modules for running locally
+      command: bash /vagrant/python_dependencies.sh {{venv}}
+      args:
+        chdir: /vagrant/
   roles:
     - { role: ansible-role-heroku-toolbelt }
