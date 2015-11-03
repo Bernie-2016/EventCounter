@@ -1,8 +1,18 @@
 Installation
 ============
 
-This is set up to run under heroku.  It expects the following  config
-settings: 
+To complete the git checkout process, run these commands in this
+directory: 
+
+```
+git submodule init
+git submodule update --recursive
+```
+
+To build this service, first install Vagrant and virtualbox.  
+
+This service is set up to run under heroku.  It expects the following
+config settings to be passed as environment variables:
 
 - `EMAILUSERNAME`: Name of gmail account for sending failure
   notifications.  Go
@@ -12,9 +22,26 @@ settings:
 - `EMAILPASSWORD`: Password for gmail account
 - `EMAILRECIPIENT`: Email to send notifications to
 - `BSDHOST`: Host of the Blue State Digital database
-- `BSDPORT`: Port for DB
+- `BSDPORT`: Port for DB (default 80)
 - `BSDID`: ID for DB
 - `BSDSECRET`: Secret for DB
+- `HEROKU_APP_NAME`: It will create a random name for you if you don't
+  give it one.  An app with this name will be created if it doesn't
+  already exist.
+- `HEROKU_API_KEY`: You can get it this from [this page](https://dashboard.heroku.com/account).
+- `HEROKU_EMAIL`: Your heroku login email.
+
+You can ignore the "EMAIL" variables if you want. They will disappear
+soon.
+
+Set those environment variables, then in this directory run `vagrant
+init ubuntu/trusty64` followed by `vagrant up`.  If the output finishes
+with "failed=0", you have successfully provisioned a server.  This will
+take a while.
+
+You can start it up and test it by logging into the machine with
+`vagrant ssh`, then running `heroku local`.  The service will hear
+requests made to port 7000 of the host machine.
 
 Usage
 =====

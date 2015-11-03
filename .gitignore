@@ -2,3 +2,8 @@ venv/
 *.pyc
 .env
 .env2
+\#*\#
+.\#*
+.vagrant
+*.bak
+
