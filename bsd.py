@@ -23,10 +23,12 @@ def get_search_results(date):
         raise httplib.HTTPException, 'Event search failed:\n' + str(resp)
     return resp
 
+nonexistent_re = re.compile(
+    "The event_id_obfuscated '[a-z0-9]{,10}' does not exist in the system.")
+
 def get_dates(events, date_field='start_dt', default='1972-08-02 06:00:00'):
-    nonexistent = "The event_id_obfuscated '[a-z0-9]{,10}' does not exist in the system."
     return [datetime.datetime.strptime(e.get(date_field, default), date_format)
-            for e in events if not re.match(nonexistent, str(e))]
+            for e in events if not nonexistent_re.match(str(e))]
 
 never = datetime.datetime(2500, 1, 1)
 
