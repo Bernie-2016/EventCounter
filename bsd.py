@@ -64,5 +64,13 @@ def get_events_since(since):
         latest = newlatest
     return events
 
-# t = get_events('Jan 1 1970')
-# print len(t)
+def get_available_event_types():
+    event_types = json.loads(api.doRequest('/event/get_available_types',
+                                           None, api.POST, body={}).body)
+    return dict((e['name'], int(e['event_type_id'])) for e in event_types)
+
+event_types = get_available_event_types()
+event_type_ids = [None] * (max(event_types.values()) + 1)
+for name, _id in event_types.items():
+    event_type_ids[_id] = name
+    
