@@ -92,5 +92,7 @@ if __name__ == '__main__':
     cherrypy.log('Updating database with events since %s' % since)
     import_json.import_bsd_events_since(since)
     update_db()
-    cherrypy.config.update({'server.socket_port': int(sys.argv[1])})
+    cherrypy.log('Here is sys.argv: %s' % sys.argv)
+    cherrypy.config.update({'server.socket_port': int(sys.argv[1]),
+                            'server.socket_host': '0.0.0.0'})
     cherrypy.quickstart(Root())
