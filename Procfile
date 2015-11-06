@@ -1,1 +1,1 @@
-web: python -m EventCounter.count $PORT
+web: python -m EventCounter.serve $PORT
