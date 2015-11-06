@@ -1,4 +1,4 @@
-import MySQLdb, itertools, re, os, bisect, copy, urlparse, contextlib
+import MySQLdb, itertools, re, os, bisect, copy, urlparse, contextlib, datetime
 from . import config, bsd
 
 schema = {'venue_zip'           : 'CHAR(5)',
@@ -87,11 +87,13 @@ def get_all_events():
                 else:
                     break
 
-def most_recently_created_event():
+def most_recently_created_event_date():
     with contextlib.closing(connection()) as conn: # Close connection automatically
         with conn as cursor:
             cursor.execute('SELECT MAX(create_dt) FROM events;')
-            return cursor.fetchone()[0]
+            rv = cursor.fetchone()[0]
+            return datetime.datetime(1972, 8, 2) if rv is None else rv
+                
 
 def maybe_create_tables():
     db = connection()
@@ -106,7 +108,7 @@ def maybe_create_tables():
         db.close()
 
 def get_event_types():
-    event_types = bsd.event_types.copy()
+    event_types = bsd.get_available_event_types()
     with contextlib.closing(connection()) as conn:
         with conn as cursor:
             # Check that there are no mismatches in descriptions
@@ -124,7 +126,7 @@ def update_event_types(events):
             # Record new event types
             cursor.executemany('INSERT INTO event_types (id, description) VALUES (%s,%s)',
                                [(_id, description) for description, _id in events.items()
-                                if _id not in results])
+                                if _id not in results.values()])
 
 def dump():
     return os.popen('mysqldump -u%s -p%s --host=%s %s | gzip -9' % (
