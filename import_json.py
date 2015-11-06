@@ -1,9 +1,13 @@
-import  json, urllib, itertools, logging
+import  json, urllib, itertools, logging, cherrypy
 from datetime import datetime
 from dateutil.parser import parse as parse_date
 from . import db, bsd
 from .data import cl
     
+def get_attendee_count(event):
+    # Sometimes this can be None.
+    return event.get('attendee_count', None) or 0
+
 def insert(rows):
     event_types = {}
     insertions = []
@@ -22,22 +26,26 @@ def insert(rows):
         if not cl.conus_p(_zip):
             logging.info('Excluding non-CONUS event: %s' % event)
             continue
-        if 'shift_details' in event:
-            assert 'attendee_count' not in event
-            assert len(event['shift_details']) == int(event['shiftcount'])
-            # XXX  This  may   multicount  attendees  of  multiple
-            # shifts!  Need actual list of attendees.
-            attendee_count = sum(int(s['attendee_count'])
-                                 for s in event['shift_details'])
-        else:
-            attendee_count = event.get('attendee_count', None)
-            if attendee_count is not None:
-                attendee_count = int(attendee_count)
+        attendee_count = None # Sentinel for no attendee-count info
+        if 'days' in event:
+            attendee_count = 0
+            for d in event['days']:
+                if 'shifts' in d:
+                    for s in d['shifts']:
+                        attendee_count += int(s['guest_count'])
+                else:
+                    attendee_count += int(d['guest_count'])
+        elif event.get('attendee_count', None) is not None:
+            attendee_count = int(event['attendee_count'])
         insertion = event.copy()
         # Normalize state field to venue_state_cd
         insertion['venue_state_cd'] = insertion.get(
-            'venue_state_cd', insertion.get('venue_state_code', None))
-        assert insertion['venue_state_cd'] is not None
+            'venue_state_cd', insertion.get(
+            'venue_state_code', cl.zipstate.get(insertion['venue_zip'], None)))
+        if insertion['venue_state_cd'] != cl.zipstate[insertion['venue_zip']]:
+            # At time of writing, this skips about 28 events.
+            cherrypy.log('Skipping event with mismatched zip and state: %s' % event['event_id_obfuscated'])
+            continue
         # Normalize start_dt to top-level field
         insertion['start_dt'] = insertion.get(
             'start_dt', insertion.get('days', [{'start_dt': None}])[0]['start_dt'])
@@ -51,11 +59,16 @@ def insert(rows):
         insertion['clregion'] = cl.zipcl[insertion['venue_zip']]
         insertions.append(insertion)
         if 'event_type_name' in insertion:
+            # Some events have event_type_name, some don't.  Track the
+            # ids of  those which do  so we can  fill it in  for those
+            # which don't.
+            assert 'event_type_id' in insertion # This isn't true for the public interface, but ignore that
             name, _id = insertion['event_type_name'], int(insertion['event_type_id'])
             assert event_types.get(name, _id) == _id
             event_types[name] = _id
-    db.insert_event_counts(insertions)
+    # XXX these database interactions should be wrappen in a commit.
     db.update_event_types(event_types)
+    db.insert_event_counts(insertions)
 
 def import_events(url):
     events = json.loads(urllib.urlopen(url).read())['results']
