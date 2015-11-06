@@ -33,12 +33,15 @@ def insert(rows):
             if attendee_count is not None:
                 attendee_count = int(attendee_count)
         insertion = event.copy()
+        # Normalize state field to venue_state_cd
         insertion['venue_state_cd'] = insertion.get(
             'venue_state_cd', insertion.get('venue_state_code', None))
         assert insertion['venue_state_cd'] is not None
+        # Normalize start_dt to top-level field
         insertion['start_dt'] = insertion.get(
             'start_dt', insertion.get('days', [{'start_dt': None}])[0]['start_dt'])
         assert insertion['start_dt'] is not None
+        # Use earliest of now() and start_dt for create_dt if no value given.
         insertion['create_dt'] = str(min(
             datetime.now(), parse_date(insertion.get(
             'create_dt', insertion['start_dt']))))
