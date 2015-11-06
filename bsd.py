@@ -11,7 +11,7 @@ api.verbose=True
 date_format = '%Y-%m-%d %H:%M:%S'
 
 def get_search_results(date):
-    req = dict(date_start=str(date), limit='10000')
+    req = dict(date_start=str(date), limit='1000')
     for dummy in 10*[None]:
         resp = api.doRequest('/event/search_events', req , api.GET, None)
         # Sometimes  you  get a  temporary  'bad  gateway' from  this.
@@ -69,8 +69,3 @@ def get_available_event_types():
                                            None, api.POST, body={}).body)
     return dict((e['name'], int(e['event_type_id'])) for e in event_types)
 
-event_types = get_available_event_types()
-event_type_ids = [None] * (max(event_types.values()) + 1)
-for name, _id in event_types.items():
-    event_type_ids[_id] = name
-    
