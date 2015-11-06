@@ -6,4 +6,10 @@ venv/
 .\#*
 .vagrant
 *.bak
+data.js
+data/events.csv
+data/parse_events.py
+data/plot_dates.py
+data/test_create_dt_theory.py
+data/usps_zip_code_database.csv
 
