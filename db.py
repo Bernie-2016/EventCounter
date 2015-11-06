@@ -8,7 +8,8 @@ schema = {'venue_zip'           : 'CHAR(5)',
           'attendee_count'      : 'INT',
           'create_dt'           : 'DATETIME',
           'start_dt'            : 'DATETIME',
-          'attendee_info'       : 'BOOLEAN', 
+          'attendee_info'       : 'BOOLEAN',
+          'event_type_id'       : 'INT',
           'event_id_obfuscated' : 'VARCHAR(20)',}
 primary_key = 'event_id_obfuscated'
 
