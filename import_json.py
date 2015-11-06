@@ -5,6 +5,7 @@ from . import db, bsd
 from .data import cl
     
 def insert(rows):
+    event_types = {}
     insertions = []
     for event in rows:
         if bsd.nonexistent_re.match(str(event)):
@@ -49,7 +50,12 @@ def insert(rows):
         insertion['attendee_info'] = True if attendee_count is not None else False
         insertion['clregion'] = cl.zipcl[insertion['venue_zip']]
         insertions.append(insertion)
+        if 'event_type_name' in insertion:
+            name, _id = insertion['event_type_name'], int(insertion['event_type_id'])
+            assert event_types.get(name, _id) == _id
+            event_types[name] = _id
     db.insert_event_counts(insertions)
+    db.update_event_types(event_types)
 
 def import_events(url):
     events = json.loads(urllib.urlopen(url).read())['results']

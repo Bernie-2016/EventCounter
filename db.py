@@ -1,5 +1,5 @@
-import MySQLdb, itertools, re, os, bisect, copy, urlparse
-from . import config
+import MySQLdb, itertools, re, os, bisect, copy, urlparse, contextlib
+from . import config, bsd
 
 schema = {'venue_zip'           : 'CHAR(5)',
           'venue_state_cd'      : 'CHAR(2)',
@@ -12,6 +12,7 @@ schema = {'venue_zip'           : 'CHAR(5)',
           'event_type_id'       : 'INT',
           'event_id_obfuscated' : 'VARCHAR(20)',}
 primary_key = 'event_id_obfuscated'
+assert primary_key in schema
 
 db_fields = schema.keys()
 
@@ -73,15 +74,58 @@ def get_counts(zips, timebreaks, conn):
                    [timebreaks[0], timebreaks[-1]])
     return lambda: [dict(zip(cols, r)) for r in cursor.fetchmany(1000)]
 
-def maybe_create_events_table():
+def get_all_events():
+    with contextlib.closing(connection()) as conn: # Close connection automatically
+        with conn as cursor:
+            cols = list(set(schema) - set([primary_key]))
+            cursor.execute('SELECT %s FROM events' % ','.join(cols))
+            while True:
+                results = [dict(zip(cols, r)) for r in cursor.fetchmany(1000)]
+                if results:
+                    for row in results:
+                        yield row
+                else:
+                    break
+
+def most_recently_created_event():
+    with contextlib.closing(connection()) as conn: # Close connection automatically
+        with conn as cursor:
+            cursor.execute('SELECT MAX(create_dt) FROM events;')
+            return cursor.fetchone()[0]
+
+def maybe_create_tables():
     db = connection()
     try:
         db.cursor().execute(
             '''CREATE TABLE IF NOT EXISTS events (%s, PRIMARY KEY (%s));''' % (
             ', '.join('%s %s' % (n, t) for n,t in schema.items()), primary_key))
+        db.cursor().execute(
+            'CREATE TABLE IF NOT EXISTS event_types '
+            '(id INT, description VARCHAR(255), PRIMARY KEY (id))')
     finally:
         db.close()
 
+def get_event_types():
+    event_types = bsd.event_types.copy()
+    with contextlib.closing(connection()) as conn:
+        with conn as cursor:
+            # Check that there are no mismatches in descriptions
+            cursor.execute('SELECT description, id FROM event_types')
+            event_types.update(dict(cursor.fetchall()))
+    return event_types
+
+def update_event_types(events):
+    with contextlib.closing(connection()) as conn:
+        with conn as cursor:
+            # Check that there are no mismatches in descriptions
+            results = get_event_types()
+            for description, _id in events.items():
+                assert results.get(_id, description) == description
+            # Record new event types
+            cursor.executemany('INSERT INTO event_types (id, description) VALUES (%s,%s)',
+                               [(_id, description) for description, _id in events.items()
+                                if _id not in results])
+
 def dump():
     return os.popen('mysqldump -u%s -p%s --host=%s %s | gzip -9' % (
-        dbuser, dbpass, dbhost, database)).read()
+        config.dbuser, config.dbpass, config.dbhost, config.database)).read()
