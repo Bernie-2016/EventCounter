@@ -2,7 +2,7 @@ import json, BaseHTTPServer, itertools, re, cStringIO, traceback, copy, sys
 import threading, os, logging, time, SocketServer, base64, socket, bisect
 from dateutil.parser import parse as parse_date
 from datetime import datetime, timedelta
-from . import db, mail, import_json
+from . import db, import_json
 
 class RequestError(Exception):
     "Raised when there's a problem with a request"
@@ -78,7 +78,6 @@ request: %r
 gzipped database: %r''' % (self.client_address, tb.getvalue(), payload,
                            base64.encodestring(db.dump()))
             logging.info(logmsg)
-            mail.send('Error from bernievents', logmsg)
         
     def do_POST(self):
         # Don't tie up the connection forever if length's too long
