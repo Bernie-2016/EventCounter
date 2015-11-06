@@ -1,13 +1,13 @@
 import MySQLdb, itertools, re, os, bisect, copy, urlparse
-
-dbinfo = urlparse.urlparse(os.environ['CLEARDB_DATABASE_URL'])
-dbcreds, dbhost = dbinfo.netloc.split('@')
-dbuser, dbpass = dbcreds.split(':')
-database = os.path.split(dbinfo.path)[-1]
+from . import config
 
 schema = {'venue_zip'           : 'CHAR(5)',
+          'venue_state_cd'      : 'CHAR(2)',
+          'clregion'            : 'VARCHAR(20)',
+          'creator_cons_id'     : 'VARCHAR(20)',
           'attendee_count'      : 'INT',
           'create_dt'           : 'DATETIME',
+          'start_dt'            : 'DATETIME',
           'attendee_info'       : 'BOOLEAN', 
           'event_id_obfuscated' : 'VARCHAR(20)',}
 primary_key = 'event_id_obfuscated'
@@ -15,7 +15,8 @@ primary_key = 'event_id_obfuscated'
 db_fields = schema.keys()
 
 def connection():
-    return MySQLdb.connect(passwd=dbpass, db=database, user=dbuser, host=dbhost)
+    return MySQLdb.connect(passwd=config.dbpass, db=config.database,
+                           user=config.dbuser, host=config.dbhost)
 
 def insert_event_counts(insertions, db=None):
     for row in insertions:

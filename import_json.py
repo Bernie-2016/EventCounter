@@ -1,24 +1,31 @@
-import  json, urllib, itertools
+import  json, urllib, itertools, logging
 from . import db, bsd
+from .data import cl
     
 def insert(rows):
     insertions = []
     for event in rows:
-        if 'attendee_count' in event:
-            attendee_count = int(event['attendee_count'])
-        elif 'shift_details' in event:
+        if '-' in event['venue_zip']:
+            event['venue_zip'] = event['venue_zip'].split('-')[0]
+        if not cl.conus_p(event['venue_zip']):
+            logging.info('Excluding non-CONUS event: %s' % event)
+            continue
+        if 'shift_details' in event:
+            assert 'attendee_count' not in event
             assert len(event['shift_details']) == int(event['shiftcount'])
             # XXX  This  may   multicount  attendees  of  multiple
             # shifts!  Need actual list of attendees.
             attendee_count = sum(int(s['attendee_count'])
                                  for s in event['shift_details'])
         else:
-            # No attendee_count information:
-            attendee_count = None
+            attendee_count = event.get('attendee_count', None)
+            if attendee_count is not None:
+                attendee_count = int(attendee_count)
         insertion = event.copy()
         insertion['attendee_count'] = 0 if attendee_count is None else attendee_count
         insertion['attendee_info'] = True if attendee_count is not None else False
         insertion['venue_zip'] = insertion['venue_zip'].split('-')[0]
+        insertion['clregion'] = cl.zipcl[insertion['venue_zip']]
         insertions.append(insertion)
     db.insert_event_counts(insertions)
 
