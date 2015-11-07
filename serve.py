@@ -1,5 +1,6 @@
 import json, itertools, re, cStringIO, traceback, copy, sys, cherrypy
 import threading, os, time, SocketServer, base64, socket, bisect, time
+import frozendict
 from repoze.lru import CacheMaker
 from dateutil.parser import parse as parse_date
 from datetime import datetime, timedelta
@@ -23,57 +24,63 @@ def deddict(d):
                 for k, v in d.items())
 
 class Root(object):
-    @cherrypy.expose
+
+    default_aggregate_values = dict(
+        # State abbreviations to filter for
+        states=frozenset(cl.conus_states),
+        # Craigslist regions to filter for
+        clregions=frozenset(cl.clzip.keys()),
+        # Zips to filter for
+        zips=frozenset(cl.zipcl.keys()),
+        # Event type ids to filter for
+        event_types=frozenset(range(2000)),
+        # [date(1),...,date(n)] gives counts for [(date(1),date(2)),...(date(n-1),date(n))]
+        timebreaks=tuple(weekly_dates),
+        # What to count
+        counts=('count', 'rsvp'),
+        # What date to use when aggregating
+        time_type='create_dt',
+        # Ajax string...
+        _=None)
+
     @cachemaker.expiring_lrucache(maxsize=100, timeout=3600, name='aggregate')
-    def aggregate(self,
-                  # State abbreviations to filter for
-                  states=set(cl.conus_states),
-                  # Craigslist regions to filter for
-                  clregions=set(cl.clzip.keys()),
-                  # Zips to filter for
-                  zips=set(cl.zipcl.keys()),
-                  # Event type ids to filter for
-                  event_types=set(range(2000)),
-                  # [date(1),...,date(n)] gives counts for [(date(1),date(2)),...(date(n-1),date(n))]
-                  timebreaks=weekly_dates,
-                  # What to count
-                  counts=['events', 'rsvps'],
-                  # What date to use when aggregating
-                  time_type='create_dt'):
-        # Convert any web arguments to json objects.  They arrive as strings.
-        states      = set(json.loads(states))      if isinstance(states,      basestring) else states
-        clregions   = set(json.loads(clregions))   if isinstance(clregions,   basestring) else clregions
-        zips        = set(json.loads(zips))        if isinstance(zips,        basestring) else zips
-        event_types = set(json.loads(event_types)) if isinstance(event_types, basestring) else event_types
-        counts      = json.loads(counts)           if isinstance(counts,      basestring) else counts
-        if isinstance(timebreaks,  basestring):
-            timebreaks  = map(parse_date, json.loads(timebreaks))
+    def _aggregate(self, kw):
         event_types_lookup = dict((id, name) for name, id in db.get_event_types().items())
         # Build the return value in this object
              #State        # CL region   # Daterange   #eventtype
         rv = ddict(lambda: ddict(lambda: ddict(lambda: ddict(
-            lambda: dict((e,0) for e in counts)))))
+            lambda: dict((e,0) for e in kw['counts']))))) # And the actual counts...
         for event in db.get_all_events():
-            interval = bisect.bisect(timebreaks, event[time_type])
-            if interval == 0 or interval == len(timebreaks):
+            interval = bisect.bisect(kw['timebreaks'], event[kw['time_type']])
+            if interval == 0 or interval == len(kw['timebreaks']):
                 # Event lies outside requested time intervals
                 continue
             # If we decide to make smaller queries from the front end,
             # a  lot of  this filtering  could be  moved into  the sql
             # query in db.py to make it faster.  But it's clearer here.
-            if not ((event['venue_state_cd'] in states)    and
-                    (event['clregion']       in clregions) and
-                    (event['venue_zip']      in zips)      and
-                    (event['event_type_id']  in event_types)):
+            if not ((event['venue_state_cd'] in kw['states'])    and
+                    (event['clregion']       in kw['clregions']) and
+                    (event['venue_zip']      in kw['zips'])      and
+                    (event['event_type_id']  in kw['event_types'])):
                 continue
-            datestring = datetime.strftime(timebreaks[interval-1], '%Y-%m-%d')
+            datestring = datetime.strftime(kw['timebreaks'][interval-1], '%Y-%m-%d')
             event_type = event_types_lookup[int(event['event_type_id'])]
-            ccounts = rv[event['venue_state_cd']][event['clregion']][event_type][datestring]
-            for counttype in counts:
-                summand = {'events': 1, 'rsvps': int(event['attendee_count'])}[counttype]
+            ccounts = rv[event['venue_state_cd']][event['clregion']][datestring][event_type]
+            for counttype in kw['counts']:
+                summand = {'count': 1, 'rsvp': int(event['attendee_count'])}[counttype]
                 ccounts[counttype] += summand
-        return json.dumps(deddict(rv))
+        return deddict(rv)
 
+    @cherrypy.expose # Wrapper to deal with incompatible decorations
+    def aggregate(self, **kw):
+        for k, v in Root.default_aggregate_values.items():
+            kw[k] = json.loads(kw[k]) if k in kw else v
+        if all(isinstance(tb,  basestring) for tb in kw['timebreaks']):
+            kw['timebreaks']  = tuple(map(parse_date, kw['timebreaks']))
+        print [(k, type(v)) for k, v in kw.items()]
+        return 'window.aggregatedData=' + json.dumps(
+            self._aggregate(frozendict.frozendict(kw)))
+        
 # Pull an update every hour
 def update_db():
     delay = 60*60 # One hour
@@ -90,8 +97,8 @@ if __name__ == '__main__':
     db.maybe_create_tables()
     since = db.most_recently_created_event_date().ctime()
     cherrypy.log('Updating database with events since %s' % since)
-    import_json.import_bsd_events_since(since)
-    update_db()
+    # import_json.import_bsd_events_since(since)
+    # update_db()
     cherrypy.log('Here is sys.argv: %s' % sys.argv)
     cherrypy.config.update({'server.socket_port': int(sys.argv[1]),
                             'server.socket_host': '0.0.0.0'})
