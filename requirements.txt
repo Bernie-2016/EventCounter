@@ -2,4 +2,5 @@ MySQL-python==1.2.5
 python-dateutil==2.4.2
 cherrypy==3.8.0
 repoze.lru==0.6
+frozendict==0.4
 git+https://github.com/bluestatedigital/bsd-api-python@6206027
