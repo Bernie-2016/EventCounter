@@ -1,6 +1,6 @@
 import json, itertools, re, cStringIO, traceback, copy, sys, cherrypy
 import threading, os, time, SocketServer, base64, socket, bisect, time
-import frozendict
+import frozendict, cStringIO, gzip
 from repoze.lru import CacheMaker
 from dateutil.parser import parse as parse_date
 from datetime import datetime, timedelta
@@ -78,8 +78,18 @@ class Root(object):
         if all(isinstance(tb,  basestring) for tb in kw['timebreaks']):
             kw['timebreaks']  = tuple(map(parse_date, kw['timebreaks']))
         print [(k, type(v)) for k, v in kw.items()]
-        return 'window.aggregatedData=' + json.dumps(
+        return_str = 'window.aggregatedData=' + json.dumps(
             self._aggregate(frozendict.frozendict(kw)))
+        # Return the gzipped file
+        cherrypy.response.headers["Content-Type"] = "application/json"
+        cherrypy.response.headers["Content-Encoding"] = "gzip"
+        cherrypy.response.headers["Vary"] = "Accept-Encoding"
+        cherrypy.response.headers["Content-Disposition"] ="gzip"
+        cherrypy.response.headers["Content-Type"] ="application/json"
+        return_file = cStringIO.StringIO()
+        with gzip.GzipFile(fileobj=return_file, mode="w") as f:
+            f.write(return_str)
+        return return_file.getvalue()
         
 # Pull an update every hour
 def update_db():
