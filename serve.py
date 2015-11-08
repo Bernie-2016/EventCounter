@@ -16,8 +16,9 @@ from EventCounter.data import cl
 cachemaker = CacheMaker()
 
 weekly_dates = [datetime.strptime('%s Mon %s' % (year, weeknum), '%Y %a %W')
-                for weeknum in range(1, 53)
-                for year in range(2015, 2017)]
+                for year in range(2015, 2017)
+                for weeknum in range(1, 53)]
+assert sorted(weekly_dates) == weekly_dates
 
 def deddict(d):
     return dict((k, deddict(v) if isinstance(v, dict) else v)
