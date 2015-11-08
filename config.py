@@ -1,7 +1,6 @@
 import os, urlparse
 
 def get_credentials(path):
-    os.chdir(os.path.join(path, 'EventCounter'))
     for line in os.popen('heroku config -s'):
         name, val = line.strip().split('=', 1)
         os.environ[name] = val
