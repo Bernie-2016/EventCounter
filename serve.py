@@ -114,7 +114,6 @@ if __name__ == '__main__':
     if not os.environ.get('DONTUPDATEEVENTSDB', None):
         import_json.import_bsd_events_since(since)
         update_db()
-    cherrypy.log('Here is sys.argv: %s' % sys.argv)
     cherrypy.config.update({'server.socket_port': int(sys.argv[1]),
                             'server.socket_host': '0.0.0.0'})
     cherrypy.quickstart(Root())
