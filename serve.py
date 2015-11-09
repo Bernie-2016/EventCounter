@@ -40,9 +40,7 @@ class Root(object):
         # What to count
         counts=('count', 'rsvp'),
         # What date to use when aggregating
-        time_type='create_dt',
-        # Ajax string...
-        _=None)
+        time_type='create_dt')
 
     # Weird events which should be excluded
     anomalous = set(['4vfr2'])
