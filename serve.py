@@ -44,6 +44,9 @@ class Root(object):
         # Ajax string...
         _=None)
 
+    # Weird events which should be excluded
+    anomalous = set(['4vfr2'])
+
     @cachemaker.expiring_lrucache(maxsize=100, timeout=3600, name='aggregate')
     def _aggregate(self, kw):
         event_types_lookup = dict((id, name) for name, id in db.get_event_types().items())
@@ -52,6 +55,8 @@ class Root(object):
         rv = ddict(lambda: ddict(lambda: ddict(lambda: ddict(
             lambda: dict((e,0) for e in kw['counts']))))) # And the actual counts...
         for event in db.get_all_events():
+            if event['event_id_obfuscated'] in self.anomalous:
+                continue
             interval = bisect.bisect(kw['timebreaks'], event[kw['time_type']])
             if interval == 0 or interval == len(kw['timebreaks']):
                 # Event lies outside requested time intervals
@@ -78,15 +83,13 @@ class Root(object):
             kw[k] = json.loads(kw[k]) if k in kw else v
         if all(isinstance(tb,  basestring) for tb in kw['timebreaks']):
             kw['timebreaks']  = tuple(map(parse_date, kw['timebreaks']))
-        print [(k, type(v)) for k, v in kw.items()]
         return_str = 'window.aggregatedData=' + json.dumps(
             self._aggregate(frozendict.frozendict(kw)))
-        # Return the gzipped file
-        cherrypy.response.headers["Content-Type"] = "application/json"
+        # Return the gzipped file XXX, this is clearly wrong.  What are the minimal headers?
         cherrypy.response.headers["Content-Encoding"] = "gzip"
         cherrypy.response.headers["Vary"] = "Accept-Encoding"
         cherrypy.response.headers["Content-Disposition"] ="gzip"
-        cherrypy.response.headers["Content-Type"] ="application/json"
+        cherrypy.response.headers["Content-Type"] ="application/javascript"
         return_file = cStringIO.StringIO()
         with gzip.GzipFile(fileobj=return_file, mode="w") as f:
             f.write(return_str)
