@@ -47,38 +47,10 @@ def insert_event_counts(insertions, db=None):
         if not db: # This is a local connection, don't tie it up
             _db.close()
 
-def get_counts(zips, timebreaks, conn):
-
-    '''Return a zero-argument function which returns rows from the the
-    db query until  all such rows are consumed.  The  db query returns
-    the counts for  all events between the two times  in timebreaks in
-    any of the zips listed in `zips`.'''
-    
-    cols = list(set(schema) - set([primary_key]))
-    allzips = list(itertools.chain(*zips))
-    cursor = conn.cursor()
-    # Sanitize so we can splice zips straight in to the sql query
-    for z in allzips: 
-        assert isinstance(z, basestring) and re.match('\d{5}$', z), \
-               'Five-digit zip code: %s?' % z
-    cursor.execute('''SELECT %s FROM events WHERE venue_zip IN (%s) AND attendee_info IS TRUE
-    AND create_dt >= %%s AND create_dt < %%s;''' % (
-        # These are the column names, e.g. 'venue_zip, create_dt, attendee_count, attendee_info'
-        ','.join(cols),
-        # E.g., '45349,02139,...'
-        ','.join(allzips)),
-                   # The  '%%s' instances  in the  above interpolation
-                   # become  '%s'  when  it's  completed,  part  of  a
-                   # prepared  statement   in  which  the   dates  are
-                   # inserted.
-                   [timebreaks[0], timebreaks[-1]])
-    return lambda: [dict(zip(cols, r)) for r in cursor.fetchmany(1000)]
-
 def get_all_events():
     with contextlib.closing(connection()) as conn: # Close connection automatically
         with conn as cursor:
-            cols = list(set(schema) - set([primary_key]))
-            cursor.execute('SELECT %s FROM events' % ','.join(cols))
+            cursor.execute('SELECT %s FROM events' % ','.join(schema))
             while True:
                 results = [dict(zip(cols, r)) for r in cursor.fetchmany(1000)]
                 if results:
