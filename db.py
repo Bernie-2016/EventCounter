@@ -52,7 +52,7 @@ def get_all_events():
         with conn as cursor:
             cursor.execute('SELECT %s FROM events' % ','.join(schema))
             while True:
-                results = [dict(zip(cols, r)) for r in cursor.fetchmany(1000)]
+                results = [dict(zip(schema, r)) for r in cursor.fetchmany(1000)]
                 if results:
                     for row in results:
                         yield row
