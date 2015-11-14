@@ -45,15 +45,21 @@ class Root(object):
     # Weird events which should be excluded
     anomalous = set(['4vfr2'])
 
+    # Types of events which should be excluded
+    hidden_events = [] # set(['Rally'])
+
     @cachemaker.expiring_lrucache(maxsize=100, timeout=3600, name='aggregate')
     def _aggregate(self, kw):
-        event_types_lookup = dict((id, name) for name, id in db.get_event_types().items())
+        event_types = db.get_event_types()
+        event_types_lookup = dict((id, name) for name, id in event_types.items())
         # Build the return value in this object
              #State        # CL region   # Daterange   #eventtype
         rv = ddict(lambda: ddict(lambda: ddict(lambda: ddict(
             lambda: dict((e,0) for e in kw['counts']))))) # And the actual counts...
         for event in db.get_all_events():
             if event['event_id_obfuscated'] in self.anomalous:
+                continue
+            if event_types_lookup[event['event_type_id']] in self.hidden_events:
                 continue
             interval = bisect.bisect(kw['timebreaks'], event[kw['time_type']])
             if interval == 0 or interval == len(kw['timebreaks']):
