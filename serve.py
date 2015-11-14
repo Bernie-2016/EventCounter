@@ -46,7 +46,7 @@ class Root(object):
     anomalous = set(['4vfr2'])
 
     # Types of events which should be excluded
-    hidden_events = [] # set(['Rally'])
+    hidden_events = set(['Rally'])
 
     @cachemaker.expiring_lrucache(maxsize=100, timeout=3600, name='aggregate')
     def _aggregate(self, kw):
