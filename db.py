@@ -68,16 +68,17 @@ def most_recently_created_event_date():
                 
 
 def maybe_create_tables():
-    db = connection()
-    try:
-        db.cursor().execute(
-            '''CREATE TABLE IF NOT EXISTS events (%s, PRIMARY KEY (%s));''' % (
-            ', '.join('%s %s' % (n, t) for n,t in schema.items()), primary_key))
-        db.cursor().execute(
-            'CREATE TABLE IF NOT EXISTS event_types '
-            '(id INT, description VARCHAR(255), PRIMARY KEY (id))')
-    finally:
-        db.close()
+    with contextlib.closing(connection()) as conn:
+        with conn as cursor:
+            cursor.execute(
+                '''CREATE TABLE IF NOT EXISTS events (%s, PRIMARY KEY (%s));''' % (
+                ', '.join('%s %s' % (n, t) for n,t in schema.items()), primary_key))
+            cursor.execute(
+                'CREATE TABLE IF NOT EXISTS event_types '
+                '(id INT, description VARCHAR(255), PRIMARY KEY (id))')
+            cursor.execute(
+                'CREATE TABLE IF NOT EXISTS event_creators '
+                '(id INT, firstname VARCHAR(255), lastname VARCHAR(255), PRIMARY KEY(id))')
 
 def get_event_types():
     event_types = bsd.get_available_event_types()
@@ -103,3 +104,29 @@ def update_event_types(events):
 def dump():
     return os.popen('mysqldump -u%s -p%s --host=%s %s | gzip -9' % (
         config.dbuser, config.dbpass, config.dbhost, config.database)).read()
+
+def get_missing_creators(creator_ids):
+    """Return the elements of creator_ids  which do not already appear
+    in the event_creators table."""
+    with contextlib.closing(connection()) as conn:
+        with conn as cursor:
+            if creator_ids:
+                cursor.execute('SELECT id FROM event_creators WHERE id IN %s', (tuple(creator_ids),))
+                known_ids = set(cursor.fetchall())
+            else:
+                known_ids = set()
+            return set(creator_ids) - known_ids
+
+def get_all_creators():
+    with contextlib.closing(connection()) as conn:
+        with conn as cursor:
+            cursor.execute('SELECT creator_cons_id FROM events')
+            return set(int(r[0]) for r in cursor.fetchall())
+
+def update_creators(creator_ids):
+    creators = bsd.get_creators_iter(get_missing_creators(creator_ids))
+    with contextlib.closing(connection()) as conn:
+        with conn as cursor:
+            cursor.executemany('INSERT INTO event_creators (id, firstname, lastname) VALUES (%s,%s,%s)',
+                               [tuple(c[k] for k in 'id firstname lastname'.split()) for c in creators])
+            

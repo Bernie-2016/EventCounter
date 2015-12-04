@@ -1,4 +1,5 @@
-import os, json, datetime, httplib, time, cPickle, re
+from xml.etree import ElementTree
+import os, json, datetime, httplib, time, cPickle, re, itertools
 from dateutil.parser import parse as parse_date
 from bsdapi.BsdApi import Factory
 from . import config
@@ -78,3 +79,18 @@ def get_available_event_types():
                                            None, api.POST, body={}).body)
     return dict((e['name'], int(e['event_type_id'])) for e in event_types)
 
+def get_creators(creator_ids):
+    creator_data = api.cons_getConstituentsById(creator_ids).body
+    creators = []
+    parser = ElementTree.XMLParser(encoding="utf-8")
+    for creator in ElementTree.fromstring(creator_data.encode('utf-8')):
+        creator_values = dict(id=int(creator.attrib['id']))
+        for field in 'firstname lastname'.split():
+            creator_values[field] = creator.find(field).text
+        creators.append(creator_values)
+    return creators
+    
+def get_creators_iter(creator_ids):
+    for batch in itertools.izip_longest(*([iter(creator_ids)]*100), fillvalue=None):
+        for creator in get_creators(filter(None, batch)):
+            yield creator
