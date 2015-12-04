@@ -14,13 +14,6 @@ To build this service, first install Vagrant and virtualbox.
 This service is set up to run under heroku.  It expects the following
 config settings to be passed as environment variables:
 
-- `EMAILUSERNAME`: Name of gmail account for sending failure
-  notifications.  Go
-  [here](https://www.google.com/settings/security/lesssecureapps) as
-  that google account and choose "turn on."  Otherwise, notifications
-  won't work.
-- `EMAILPASSWORD`: Password for gmail account
-- `EMAILRECIPIENT`: Email to send notifications to
 - `BSDHOST`: Host of the Blue State Digital database
 - `BSDPORT`: Port for DB (default 80)
 - `BSDID`: ID for DB
@@ -30,9 +23,6 @@ config settings to be passed as environment variables:
   already exist.
 - `HEROKU_API_KEY`: You can get it this from [this page](https://dashboard.heroku.com/account).
 - `HEROKU_EMAIL`: Your heroku login email.
-
-You can ignore the "EMAIL" variables if you want. They will disappear
-soon.
 
 Set those environment variables, then in this directory run `vagrant
 init ubuntu/trusty64` followed by `vagrant up`.  If the output finishes
@@ -48,8 +38,8 @@ Usage
 
 ```
 % curl -H "Content-Type: application/json" -X POST -d \
-    '[[["37209", "37416"]], ["Jan 1 1979", "Oct 23 2015"]]' \
-    http://${SERVER_HOSTNAME}:8000/
+    '{"zips": [[["37209", "37416"]], "timebreaks": ["Jan 1 1979", "Oct 23 2015"]]}' \
+    http://${SERVER_HOSTNAME}:8000/aggregate?time_type=\"start_dt\"
 {"success": [[{"events_with_attendee_info": 1, "attendees": 45, "events": 1}]]}
 ```
 
