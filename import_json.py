@@ -17,7 +17,7 @@ def insert(rows):
         _zip = event['venue_zip']
         if '-' in _zip:
             _zip = event['venue_zip'] = event['venue_zip'].split('-')[0]
-        if _zip not in cl.zipstate:
+        if _zip not in cl.ziploc:
             # Some zips are  still not included.  To  catch these, use
             # the  softwaretools  db,  instead.   But  this  might  be
             # encumbered by copyright.
@@ -41,8 +41,8 @@ def insert(rows):
         # Normalize state field to venue_state_cd
         insertion['venue_state_cd'] = insertion.get(
             'venue_state_cd', insertion.get(
-            'venue_state_code', cl.zipstate.get(insertion['venue_zip'], None)))
-        if insertion['venue_state_cd'] != cl.zipstate[insertion['venue_zip']]:
+            'venue_state_code', cl.ziploc.get(insertion['venue_zip'], [None])[0]))
+        if insertion['venue_state_cd'] != cl.ziploc[insertion['venue_zip']][0]:
             # At time of writing, this skips about 28 events.
             cherrypy.log('Skipping event with mismatched zip and state: %s' % event['event_id_obfuscated'])
             continue

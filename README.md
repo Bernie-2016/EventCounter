@@ -109,3 +109,11 @@ When the code first starts, it pulls events from the BSD api as far back
 as it can.  Then once an hour it requests all events from the last two
 hours.  It uses `event_id_obfuscated` as the primary key, and upserts
 the BSD data.
+
+Building the zip database
+=========================
+
+1. Build it according to the instructions in
+[coventry/cl-zip-codes](https://github.com/coventry/cl-zip-codes).  
+
+2. Copy the resulting more-cl-zipcodes.txt into data/.
